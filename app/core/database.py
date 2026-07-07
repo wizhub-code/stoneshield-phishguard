@@ -3,12 +3,14 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker
 from app.core.config import settings
 
-# SQLite engine — swap DATABASE_URL in .env for PostgreSQL/MySQL in production
-engine = create_engine(
-    settings.DATABASE_URL,
-    connect_args={"check_same_thread": False},  # SQLite-specific
-    echo=settings.DEBUG,
-)
+# Handle both SQLite and PostgreSQL
+if settings.DATABASE_URL.startswith("sqlite"):
+    engine = create_engine(
+        settings.DATABASE_URL,
+        connect_args={"check_same_thread": False},
+    )
+else:
+    engine = create_engine(settings.DATABASE_URL)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
@@ -16,7 +18,6 @@ Base = declarative_base()
 
 
 def get_db():
-    """Dependency — yields a DB session per request, closes after."""
     db = SessionLocal()
     try:
         yield db
@@ -25,6 +26,5 @@ def get_db():
 
 
 def init_db():
-    """Create all tables on startup."""
-    from app.models import user, scan  # noqa: F401 — ensure models are registered
+    from app.models import user, scan
     Base.metadata.create_all(bind=engine)
